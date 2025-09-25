@@ -1,10 +1,10 @@
 #!/bin/sh
 
-echo "=== Akut├íln├ş shell ==="
+echo "=== Akutální shell ==="
 echo "$SHELL"
 
 echo ""
-echo "=== U┼żivatel ==="
+echo "=== Uživatel ==="
 whoami
 
 echo ""
@@ -16,5 +16,5 @@ else
 fi
 
 echo ""
-echo "=== Environment├íln├ş prom─Ťnn├ę ==="
+echo "=== Environmentální proměnné ==="
 printenv
