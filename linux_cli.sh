@@ -1,51 +1,10 @@
-#!/bin/sh
-
-echo "=== Akutální shell ==="
-echo "$SHELL"
-
-echo ""
-echo "=== Uživatel ==="
-whoami
-
-echo ""
-echo "=== Verze linuxu ==="
-if [ -f /etc/os-release ]; then
-    cat /etc/os-release
-else
-    echo "/etc/os-release not found."
-fi
-
-echo ""
-echo "=== Environmentální proměnné ==="
-printenv
-
-
-# ukol 5
-#logovaci funkce
-log() { echo "[INFO] $1"; }
-logError() { echo "[ERROR] $1" >&2; }
-
-#vytvareni linku
-create_link() { [[ $3 == "soft" ]] && ln -s "$1" "$2" || ln "$1" "$2"; }
-
-#vypis aktualizaci
-list_updates() { git update-git-for-windows; echo $?; }
-
-#provedeni aktualizaci
-update_packages() { git update-git-for-windows}
-
-# === Hledání souborů s 'b','e','a','e' v pořadí ===
-najdi_pismena() { find "${1:-.}" -type f -name "*b*e*e*" 2>/dev/null; }
-
-
-
-#ukol 6 - fce a volání s parametry
 #!/bin/bash
 
 # --- NASTAVENÍ ---
 LOG_FILE="" 
 RETURN_CODE=0
 
+# --- ZÁKLADNÍ FUNKCE ---
 
 # Logování - INFO
 log() {
@@ -80,10 +39,13 @@ show_help() {
     echo "  -u                  Provede upgrade balíčků (sudo)."
     echo "  -s                  Vytvoří soft link na skript do /usr/local/bin/linux_cli (sudo)."
     echo "  -b                  Najde soubory s 'b...e...e' v názvu (sudo)."
+    echo "  -p                  Vypíše PID, PPID, prioritu procesu a celkový počet procesů v OS. <--- NOVÝ PŘÍKAZ"
     echo "  -l <zdroj> <cíl> [typ] Vytvoří link ('soft' nebo 'hard')."
 }
 
-# Vytvoření linku 
+# --- FUNKČNÍ LOGIKA ---
+
+# Vytvoření linku (Používá $1, $2, $3 po zpracování getopts)
 create_link() {
     local SOURCE="$1"
     local TARGET="$2"
@@ -158,10 +120,31 @@ find_bee_files() {
     [[ $? -ne 0 ]] && logError "Chyba při hledání (zkuste sudo)."
 }
 
+# Informace o procesu (-p) <--- NOVÁ FUNKCE
+process_info() {
+    log "Vypisuji informace o aktuálním procesu..."
+    
+    local CURRENT_PID=$$
+    local PARENT_PID=$(ps -o ppid= -p $CURRENT_PID | tr -d ' ')
+    # Priorita (nice hodnota)
+    local PRIORITY=$(ps -o ni= -p $CURRENT_PID | tr -d ' ')
+    # Celkový počet procesů v systému
+    local TOTAL_PROCESSES=$(ps ax | wc -l)
+
+    echo "" 
+    echo "--- Informace o aktuálním procesu ---"
+    echo "PID aktuálního procesu: ${CURRENT_PID}"
+    echo "PID jeho rodiče (PPID): ${PARENT_PID}"
+    echo "Priorita procesu (nice): ${PRIORITY}"
+    echo "Celkový počet procesů v OS: ${TOTAL_PROCESSES}"
+    echo "-------------------------------------"
+}
+
 ACTIONS=()
 DO_CREATE_LINK=false
 
-while getopts "hf:aulsb" OPT; do
+# Flagy: h, f:, a, u, l, s, b, p <--- PŘIDANÉ 'p'
+while getopts "hf:aulsbp" OPT; do
     case "$OPT" in
         h) show_help; exit 0 ;;
         f) LOG_FILE="$OPTARG"; log "Logování nastaveno na soubor: $LOG_FILE.";;
@@ -169,6 +152,7 @@ while getopts "hf:aulsb" OPT; do
         u) ACTIONS+=("upgrade_packages");;
         s) ACTIONS+=("install_cli_link");;
         b) ACTIONS+=("find_bee_files");;
+        p) ACTIONS+=("process_info");; # <--- ZPRACOVÁNÍ NOVÉHO FLAGU
         l) DO_CREATE_LINK=true;;
         \?) logError "Neplatný flag: -$OPTARG"; show_help; exit 1 ;;
     esac
@@ -184,12 +168,13 @@ if $DO_CREATE_LINK; then
     create_link "$1" "$2" "$3"
 fi
 
-# 2. Vykonávání zbytku
+# 2. Vykonávání ostatních akcí (v pořadí, v jakém byly flagy definovány)
 for action in "${ACTIONS[@]}"; do
     log "Vykonávám: $action"
     # Spuštění funkce
     "$action"
 done
 
+# --- UKONČENÍ ---
 log "Skript dokončen."
 exit $RETURN_CODE
