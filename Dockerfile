@@ -1,7 +1,10 @@
-FROM debian:stable-slim
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y sudo
 
 COPY linux_cli.sh /usr/local/bin/linux_cli
-
 RUN chmod +x /usr/local/bin/linux_cli
 
-CMD ["/usr/local/bin/linux_cli", "-p"]
+ENTRYPOINT ["/usr/local/bin/linux_cli"]
+
+CMD ["-h"]
